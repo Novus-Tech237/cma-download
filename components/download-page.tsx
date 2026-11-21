@@ -4,7 +4,7 @@ import { Fragment, type ReactNode } from "react";
 import { ForThisDevice, OtherDeviceNotice, type Platform } from "@/components/device";
 import { AndroidLogo, ArrowRightIcon, DownloadIcon, GlobeIcon, PhoneIcon, WindowsLogo } from "@/components/icons";
 import { copy, intlLocale, localePath, TIME_ZONE, type Copy, type Locale } from "@/lib/copy";
-import { release, type ReleaseFile } from "@/lib/release";
+import { getRelease, WEB_APP, type Release, type ReleaseFile } from "@/lib/release";
 import logo from "@/public/logo.png";
 
 /** The card every block sits in: the HMS's slate-on-white bento card. */
@@ -33,26 +33,19 @@ function formatDate(iso: string, locale: Locale) {
   return new Intl.DateTimeFormat(intlLocale[locale], { dateStyle: "medium", timeZone: TIME_ZONE }).format(new Date(iso));
 }
 
-export function DownloadPage({ locale }: { locale: Locale }) {
+export async function DownloadPage({ locale }: { locale: Locale }) {
   const t = copy[locale];
-  const { windows, android, webApp, version } = release;
-  const host = new URL(webApp).host;
+  const release = await getRelease();
+  const host = new URL(WEB_APP).host;
 
   const siteLink = (
     <a
-      href={webApp}
+      href={WEB_APP}
       className={`font-medium text-brand-700 underline decoration-brand-300 underline-offset-4 transition-colors hover:decoration-brand-600 dark:text-brand-300 dark:decoration-brand-700 ${FOCUS}`}
     >
       {host}
     </a>
   );
-
-  const windowsSteps = [
-    rich(t.install.windowsSteps.open, { file: <FileName>{windows.name}</FileName> }),
-    ...(windows.signed ? [] : [t.install.windowsSteps.smartScreen]),
-    t.install.windowsSteps.perUser,
-    t.install.windowsSteps.signIn,
-  ];
 
   return (
     <div className="relative isolate flex min-h-dvh flex-col">
@@ -68,10 +61,12 @@ export function DownloadPage({ locale }: { locale: Locale }) {
       <main lang={locale} className="mx-auto w-full max-w-5xl flex-1 px-4 pb-20 sm:px-6">
         {/* ── Hero ─────────────────────────────────────────────────────── */}
         <section className="max-w-2xl pt-10 pb-10 sm:pt-16 sm:pb-12">
-          <p className="inline-flex items-center gap-2 rounded-full border border-brand-200/70 bg-brand-50/80 px-3 py-1 text-xs font-semibold text-brand-700 dark:border-brand-800/50 dark:bg-brand-950/40 dark:text-brand-300">
-            <span aria-hidden className="size-1.5 rounded-full bg-brand-500" />
-            {rich(t.eyebrow, { version })}
-          </p>
+          {release && (
+            <p className="inline-flex items-center gap-2 rounded-full border border-brand-200/70 bg-brand-50/80 px-3 py-1 text-xs font-semibold text-brand-700 dark:border-brand-800/50 dark:bg-brand-950/40 dark:text-brand-300">
+              <span aria-hidden className="size-1.5 rounded-full bg-brand-500" />
+              {rich(t.eyebrow, { version: release.version })}
+            </p>
+          )}
           <h1 className="mt-5 text-4xl font-semibold tracking-tight text-balance text-slate-900 sm:text-5xl dark:text-white">
             {rich(t.title, { app: <span className="text-brand-600 dark:text-brand-400">CMA HMS</span> })}
           </h1>
@@ -88,65 +83,11 @@ export function DownloadPage({ locale }: { locale: Locale }) {
           </OtherDeviceNotice>
         </section>
 
-        {/* ── Downloads ────────────────────────────────────────────────── */}
-        <section aria-label={t.downloads} className="grid gap-5 md:grid-cols-2">
-          <DownloadCard
-            t={t}
-            locale={locale}
-            platform="windows"
-            icon={<WindowsLogo />}
-            name={t.windows.name}
-            requirements={t.windows.requirements}
-            button={t.windows.button}
-            file={windows}
-            version={version}
-          />
-          {android ? (
-            <DownloadCard
-              t={t}
-              locale={locale}
-              platform="android"
-              icon={<AndroidLogo className="size-7" />}
-              name={t.android.name}
-              requirements={t.android.requirements}
-              button={t.android.button}
-              file={android}
-              version={version}
-            />
-          ) : (
-            <ComingSoonCard t={t} webApp={webApp} />
-          )}
-        </section>
-
-        {/* ── How to install ───────────────────────────────────────────── */}
-        <section className="mt-16 sm:mt-20" aria-labelledby="install">
-          <h2 id="install" className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
-            {t.install.title}
-          </h2>
-          <div className="mt-6 grid gap-5 md:grid-cols-2">
-            <Steps
-              icon={<WindowsLogo className="size-5" />}
-              title={t.install.windowsTitle}
-              steps={windowsSteps}
-              notes={t.install.windowsNotes}
-            />
-            {android ? (
-              <Steps
-                icon={<AndroidLogo className="size-5" />}
-                title={t.install.androidTitle}
-                steps={t.install.androidSteps}
-                notes={t.install.androidNotes}
-              />
-            ) : (
-              <Steps
-                icon={<PhoneIcon />}
-                title={t.install.phoneTitle}
-                steps={t.install.phoneSteps.map((s) => rich(s, { site: siteLink }))}
-                notes={t.install.phoneNotes}
-              />
-            )}
-          </div>
-        </section>
+        {release ? (
+          <ReleaseSections t={t} locale={locale} release={release} siteLink={siteLink} />
+        ) : (
+          <Unavailable t={t} />
+        )}
 
         {/* ── In the browser ───────────────────────────────────────────── */}
         <section className="mt-16 flex flex-col gap-5 rounded-2xl bg-brand-800 p-6 text-white sm:mt-20 sm:flex-row sm:items-center sm:justify-between sm:p-8 dark:border dark:border-brand-800/60 dark:bg-brand-950/70">
@@ -155,7 +96,7 @@ export function DownloadPage({ locale }: { locale: Locale }) {
             <p className="mt-1.5 text-sm text-brand-100 dark:text-brand-200/80">{t.browser.body}</p>
           </div>
           <a
-            href={webApp}
+            href={WEB_APP}
             className={`inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-brand-800 transition hover:bg-brand-50 focus-visible:outline-white ${FOCUS}`}
           >
             {t.browser.button}
@@ -166,10 +107,111 @@ export function DownloadPage({ locale }: { locale: Locale }) {
 
       <footer className="border-t border-slate-200/70 dark:border-slate-800">
         <p className="mx-auto max-w-5xl px-4 py-6 text-xs text-slate-500 sm:px-6 dark:text-slate-400">
-          {rich(t.footer, { version })}
+          {t.footer}
+          {release && ` · CMA HMS ${release.version}`}
         </p>
       </footer>
     </div>
+  );
+}
+
+/** The download cards and the installation steps of a published release. */
+function ReleaseSections({
+  t,
+  locale,
+  release,
+  siteLink,
+}: {
+  t: Copy;
+  locale: Locale;
+  release: Release;
+  siteLink: ReactNode;
+}) {
+  const { windows, android, version } = release;
+  const windowsSteps = [
+    rich(t.install.windowsSteps.open, { file: <FileName>{windows.name}</FileName> }),
+    ...(windows.signed ? [] : [t.install.windowsSteps.smartScreen]),
+    t.install.windowsSteps.perUser,
+    t.install.windowsSteps.signIn,
+  ];
+
+  return (
+    <>
+      {/* ── Downloads ────────────────────────────────────────────────── */}
+      <section aria-label={t.downloads} className="grid gap-5 md:grid-cols-2">
+        <DownloadCard
+          t={t}
+          locale={locale}
+          platform="windows"
+          icon={<WindowsLogo />}
+          name={t.windows.name}
+          requirements={t.windows.requirements}
+          button={t.windows.button}
+          file={windows}
+          version={version}
+        />
+        {android ? (
+          <DownloadCard
+            t={t}
+            locale={locale}
+            platform="android"
+            icon={<AndroidLogo className="size-7" />}
+            name={t.android.name}
+            requirements={t.android.requirements}
+            button={t.android.button}
+            file={android}
+            version={version}
+          />
+        ) : (
+          <ComingSoonCard t={t} />
+        )}
+      </section>
+
+      {/* ── How to install ───────────────────────────────────────────── */}
+      <section className="mt-16 sm:mt-20" aria-labelledby="install">
+        <h2 id="install" className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+          {t.install.title}
+        </h2>
+        <div className="mt-6 grid gap-5 md:grid-cols-2">
+          <Steps
+            icon={<WindowsLogo className="size-5" />}
+            title={t.install.windowsTitle}
+            steps={windowsSteps}
+            notes={t.install.windowsNotes}
+          />
+          {android ? (
+            <Steps
+              icon={<AndroidLogo className="size-5" />}
+              title={t.install.androidTitle}
+              steps={t.install.androidSteps}
+              notes={t.install.androidNotes}
+            />
+          ) : (
+            <Steps
+              icon={<PhoneIcon />}
+              title={t.install.phoneTitle}
+              steps={t.install.phoneSteps.map((s) => rich(s, { site: siteLink }))}
+              notes={t.install.phoneNotes}
+            />
+          )}
+        </div>
+      </section>
+    </>
+  );
+}
+
+/** No release to offer: none published yet, or GitHub out of reach. */
+function Unavailable({ t }: { t: Copy }) {
+  return (
+    <section className={`${CARD} flex gap-4 p-6 sm:p-8`}>
+      <span className={`${LOGO_TILE} shrink-0`}>
+        <DownloadIcon className="size-6 text-slate-400" />
+      </span>
+      <div className="min-w-0">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{t.unavailable.title}</h2>
+        <p className="mt-1.5 text-sm text-pretty text-slate-600 dark:text-slate-300">{t.unavailable.body}</p>
+      </div>
+    </section>
   );
 }
 
@@ -257,7 +299,7 @@ function DownloadCard({
   );
 }
 
-function ComingSoonCard({ t, webApp }: { t: Copy; webApp: string }) {
+function ComingSoonCard({ t }: { t: Copy }) {
   return (
     <article className={`${CARD} flex flex-col p-6 sm:p-7`}>
       <div className="flex items-start justify-between gap-3">
@@ -275,7 +317,7 @@ function ComingSoonCard({ t, webApp }: { t: Copy; webApp: string }) {
       </p>
       <div className="mt-auto pt-6">
         <a
-          href={webApp}
+          href={WEB_APP}
           className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-800 transition hover:border-brand-300 hover:text-brand-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-brand-700 dark:hover:text-brand-300 ${FOCUS}`}
         >
           <GlobeIcon className="size-4.5" />

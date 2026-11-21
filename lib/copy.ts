@@ -98,7 +98,11 @@ const fr = typeset({
     body: "CMA HMS fonctionne aussi dans tout navigateur récent, sur ordinateur comme sur téléphone.",
     button: "Ouvrir CMA HMS",
   },
-  footer: "Centre Médical AFUNA · CMA HMS {version}",
+  unavailable: {
+    title: "Téléchargements momentanément indisponibles",
+    body: "Les applications ne peuvent pas être téléchargées pour le moment. Réessayez un peu plus tard ; en attendant, CMA HMS fonctionne dans le navigateur.",
+  },
+  footer: "Centre Médical AFUNA",
 });
 
 export type Copy = typeof fr;
@@ -178,7 +182,11 @@ const en: Copy = {
     body: "CMA HMS also works in any recent browser, on a computer or a phone.",
     button: "Open CMA HMS",
   },
-  footer: "Centre Médical AFUNA · CMA HMS {version}",
+  unavailable: {
+    title: "Downloads unavailable for now",
+    body: "The apps cannot be downloaded at the moment. Try again a little later; meanwhile, CMA HMS works in the browser.",
+  },
+  footer: "Centre Médical AFUNA",
 };
 
 export const copy: Record<Locale, Copy> = { fr, en };

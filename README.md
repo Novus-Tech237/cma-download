@@ -1,48 +1,38 @@
 # CMA HMS downloads
 
 The page where the Centre Médical AFUNA staff download the CMA HMS apps:
-the Windows installer and, once it is signed, the Android APK. French at `/`,
-English at `/en`. The apps themselves are built in `../cma-hms` (its
+the Windows installer and the Android APK. French at `/`, English at `/en`.
+The apps themselves are built in the cma-hms repository (its
 `src-tauri/README.md` and `docs/deployment.md`).
 
-## Publishing a release
+## Where the downloads come from
 
-1. In cma-hms, build the apps: `npm run desktop:build`, and
-   `npm run android:build` once the Android upload key exists.
-2. Here:
+Nothing to do here when a new version is released.
 
-   ```sh
-   pnpm release:sync
-   ```
+1. In cma-hms, `version` is raised in `src-tauri/tauri.conf.json` and merged
+   to `master`.
+2. Its workflow (`.github/workflows/app-release.yml`) builds Windows and
+   Android and publishes release `v<version>` in the public
+   `Novus-Tech237/cma-hms-releases` repository, with a `release.json`
+   describing the files (written by cma-hms's `scripts/app-release.mjs`).
+3. This page reads
+   `https://github.com/Novus-Tech237/cma-hms-releases/releases/latest/download/release.json`
+   (`lib/release.ts`), and links to the files in that release. The answer is
+   cached and refreshed in the background, so a new version shows within
+   about ten minutes, without a redeploy.
 
-   It reads the version from cma-hms's `src-tauri/tauri.conf.json`, copies
-   that version's builds into `public/downloads/` and writes
-   `lib/release.json` (version, sizes, SHA-256, build dates, whether the
-   installer is signed). The page reads only that file.
-3. Build and deploy this site with the new files in `public/downloads/`.
+`release.json` is checked before use: the version, sizes, checksums, and
+every link must point into that release. If there is no release yet, or
+GitHub cannot be reached, the page says the downloads are unavailable for
+now and points to the website; it tries again a minute later.
 
-Options: `pnpm release:sync C:\path\to\cma-hms` (or `CMA_HMS_DIR`) when
-cma-hms is not next to this folder; `--no-android` to publish Windows alone.
-
-What the script refuses, so the page never offers a build that will not
-install or is not the version shown:
-
-- no Windows installer for the current version: build it first;
-- an APK that is debuggable, or whose version is not the one in
-  `tauri.conf.json` (read from the APK with the Android SDK's `aapt2`).
-
-An unsigned APK (`app-universal-release-unsigned.apk`) is skipped, and the
-page shows Android as coming soon, with the steps to install the site from
-the browser instead.
-
-`public/downloads/` belongs to the script: it is emptied on every run, so
-only the current version is offered. Keep older builds in cma-hms's releases
-folder for rollback (deployment.md, step 6).
+Another releases repository: set `CMA_RELEASES_REPO` (`owner/name`) in the
+Vercel project's environment variables.
 
 ## What the page adapts
 
-- **Android card:** a download when `release.json` has an APK, otherwise
-  "coming soon" and the browser install steps.
+- **Android card:** a download when the release has an APK, otherwise "coming
+  soon" and the steps to install the site from the browser.
 - **SmartScreen step:** shown only while the Windows installer is unsigned.
 - **"For this device":** the card matching the visitor's system is marked; on
   a device with no app (iPhone, Mac, Linux) a note points to the site. This
@@ -52,18 +42,16 @@ folder for rollback (deployment.md, step 6).
 
 | Path | Holds |
 | --- | --- |
-| `scripts/sync-release.mjs` | Copies the builds from cma-hms, writes `lib/release.json` |
-| `lib/release.json`, `lib/release.ts` | The published release, and its type |
+| `lib/release.ts` | Reads, checks and caches the latest release's `release.json` |
 | `lib/copy.ts` | Every visible string, French and English (same keys, checked by `tsc`) |
 | `components/download-page.tsx` | The page, for both languages |
 | `app/page.tsx`, `app/en/page.tsx` | `/` and `/en` |
 
 The brand colour scale and typefaces are the HMS's (cma-hms `app/globals.css`).
-The page is static: `pnpm build` prerenders both languages.
+The page is prerendered, then refreshed with the release as above.
 
 ## Commands
 
 - `pnpm dev` — development server on http://localhost:3000
 - `pnpm build`, `pnpm start` — production build and server
 - `pnpm lint`, `npx tsc --noEmit`
-- `pnpm release:sync` — publish the current cma-hms builds
